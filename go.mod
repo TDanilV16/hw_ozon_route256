@@ -1,3 +1,3 @@
-module hw1-1
+module hw_ozon_route256
 
 go 1.23
