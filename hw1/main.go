@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 )
 
 //У Саши было 10 в степени 2 яблок, каждое из которых пронумеровано и лежит в мешке.
@@ -17,18 +19,26 @@ import (
 func printFormatted(crates [][]int) {
 	carIdx := 1
 	for crateIdx := 0; crateIdx < len(crates); crateIdx++ {
-		apples := crates[crateIdx]
-		fmt.Printf("Машина: %d, Ящик: %d, Яблоки: %v\n", carIdx, crateIdx+1, apples)
+		applesCrate := crates[crateIdx]
+		stringApples := make([]string, len(applesCrate))
+
+		for idx, apple := range applesCrate {
+			stringApple := strconv.Itoa(apple)
+			stringApples[idx] = stringApple
+		}
+
+		formattedApplesCrate := strings.Join(stringApples, ",")
+		fmt.Printf("Машина: %d, Ящик: %d, Яблоки: [%s]\n", carIdx, crateIdx+1, formattedApplesCrate)
+
 		if carIdx == 1 {
 			carIdx = 2
 		} else {
 			carIdx = 1
 		}
 	}
-
 }
 
-func solve(base, degree int) [][]int {
+func DistributeApplesInCrates(base, degree int) [][]int {
 	apples := int(math.Pow(float64(base), float64(degree)))
 
 	var crates [][]int
@@ -57,5 +67,5 @@ func solve(base, degree int) [][]int {
 }
 
 func main() {
-	printFormatted(solve(2, 10))
+	printFormatted(DistributeApplesInCrates(2, 10))
 }
