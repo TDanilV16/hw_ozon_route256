@@ -56,7 +56,3 @@ func TestDistributeApplesInCrates(t *testing.T) {
 		})
 	}
 }
-
-func slicesEqual(a, b []int) bool {
-	return slices.Equal(a, b)
-}
