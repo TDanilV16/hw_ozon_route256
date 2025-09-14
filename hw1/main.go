@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -38,7 +39,18 @@ func printFormatted(crates [][]int) {
 	}
 }
 
-func DistributeApplesInCrates(base, degree int) [][]int {
+func DistributeApplesInCrates(base, degree int) ([][]int, error) {
+
+	if base < 0 {
+		err := errors.New("base must be >= 0")
+		return nil, err
+	}
+
+	if degree < 0 {
+		err := errors.New("degree must be >= 0")
+		return nil, err
+	}
+
 	apples := int(math.Pow(float64(base), float64(degree)))
 
 	var crates [][]int
@@ -63,9 +75,14 @@ func DistributeApplesInCrates(base, degree int) [][]int {
 		}
 	}
 
-	return crates
+	return crates, nil
 }
 
 func main() {
-	printFormatted(DistributeApplesInCrates(2, 10))
+	result, err := DistributeApplesInCrates(10, -20)
+	if err != nil {
+		panic(err)
+	}
+
+	printFormatted(result)
 }
