@@ -13,21 +13,51 @@ type Counter struct {
 	total   int
 }
 
-func New(text string, keyWords []string) *Counter {
+func New(textLines []string, keyWords []string) *Counter {
 
-	counter := make(map[string]int)
+	c := make(chan map[string]int)
+
+	go countWordsChan(textLines[:len(textLines)/2], keyWords, c)
+	go countWordsChan(textLines[len(textLines)/2:], keyWords, c)
+
+	first, second := <-c, <-c
+
+	for word, count := range first {
+		if _, ok := second[word]; !ok {
+			second[word] = count
+		} else {
+			second[word] += count
+		}
+	}
+
+	counter := second
 
 	total := 0
 
-	for _, word := range keyWords {
-		counter[word] = strings.Count(text, word)
-		total += counter[word]
+	for _, count := range counter {
+		total += count
 	}
-
 	return &Counter{
 		counter: counter,
 		total:   total,
 	}
+}
+
+func countWords(lines []string, keyWords []string) map[string]int {
+	text := strings.Join(lines, "\n")
+	text = strings.ToLower(text)
+
+	counter := make(map[string]int)
+
+	for _, word := range keyWords {
+		counter[word] = strings.Count(text, word)
+	}
+
+	return counter
+}
+
+func countWordsChan(lines []string, keyWords []string, c chan map[string]int) {
+	c <- countWords(lines, keyWords)
 }
 
 func (c *Counter) Find(word string) int {
@@ -54,13 +84,9 @@ func main() {
 		textLines = append(textLines, line)
 	}
 
-	text := strings.Join(textLines, "\n")
-
-	text = strings.ToLower(text)
-
 	keyWords := []string{"успех", "цел", "часть", "сложно", "будет"}
 
-	counter := New(text, keyWords)
+	counter := New(textLines, keyWords)
 
 	for word, count := range counter.counter {
 		fmt.Printf("%s: %d\n", word, count)
