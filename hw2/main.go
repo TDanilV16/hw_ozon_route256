@@ -60,11 +60,10 @@ func countWords(keyWords []string, in <-chan string, outPairs chan<- Pair) {
 
 	close(outPairs)
 }
-func merge(inPair []chan Pair) map[string]int {
+func merge(inPair []chan Pair) chan Pair {
 	var wg sync.WaitGroup
-	var mu sync.Mutex
 
-	counter := make(map[string]int)
+	resultCh := make(chan Pair)
 
 	wg.Add(len(inPair))
 
@@ -72,22 +71,29 @@ func merge(inPair []chan Pair) map[string]int {
 		go func(ch chan Pair) {
 			defer wg.Done()
 			for pair := range ch {
-				mu.Lock()
-				counter[pair.word] += pair.count
-				mu.Unlock()
+				resultCh <- pair
 			}
 		}(ch)
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
 
-	return counter
+	return resultCh
 }
 
-func write(counter map[string]int) {
+func write(resultCh <-chan Pair) {
 	var total int
 
-	for word, count := range counter {
+	cnt := make(map[string]int)
+
+	for pair := range resultCh {
+		cnt[pair.word] += pair.count
+	}
+
+	for word, count := range cnt {
 		total += count
 		fmt.Printf("%s: %d\n", word, count)
 	}
