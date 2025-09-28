@@ -3,94 +3,94 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
-type Counter struct {
-	counter map[string]int
-	total   int
-}
-
-func New(textLines []string, keyWords []string) *Counter {
-
-	c := make(chan map[string]int)
-
-	go countWordsChan(textLines[:len(textLines)/2], keyWords, c)
-	go countWordsChan(textLines[len(textLines)/2:], keyWords, c)
-
-	first, second := <-c, <-c
-
-	for word, count := range first {
-		if _, ok := second[word]; !ok {
-			second[word] = count
-		} else {
-			second[word] += count
-		}
-	}
-
-	counter := second
-
-	total := 0
-
-	for _, count := range counter {
-		total += count
-	}
-	return &Counter{
-		counter: counter,
-		total:   total,
-	}
-}
-
-func countWords(lines []string, keyWords []string) map[string]int {
-	text := strings.Join(lines, "\n")
-	text = strings.ToLower(text)
-
-	counter := make(map[string]int)
-
-	for _, word := range keyWords {
-		counter[word] = strings.Count(text, word)
-	}
-
-	return counter
-}
-
-func countWordsChan(lines []string, keyWords []string, c chan map[string]int) {
-	c <- countWords(lines, keyWords)
-}
-
-func (c *Counter) Find(word string) int {
-	if count, ok := c.counter[word]; ok {
-		return count
-	}
-
-	return 0
+type Pair struct {
+	word  string
+	count int
 }
 
 func main() {
-	file, err := os.Open("hw2/input.txt")
+
+	file, err := os.Open("input.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-
-	var textLines []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		textLines = append(textLines, line)
-	}
-
 	keyWords := []string{"успех", "цел", "часть", "сложно", "будет"}
 
-	counter := New(textLines, keyWords)
+	in := make(chan string)
+	out := make([]chan Pair, 2)
 
-	for word, count := range counter.counter {
+	go read(file, in)
+
+	for i := 0; i < len(out); i++ {
+		out[i] = make(chan Pair)
+		go countWords(keyWords, in, out[i])
+	}
+
+	counter := merge(out)
+
+	write(counter)
+}
+
+func read(r io.Reader, in chan<- string) {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		in <- strings.ToLower(scanner.Text())
+	}
+	close(in)
+}
+
+func countWords(keyWords []string, in <-chan string, outPairs chan<- Pair) {
+
+	for line := range in {
+		for _, word := range keyWords {
+			wordCountInLine := strings.Count(line, word)
+			p := Pair{word, wordCountInLine}
+			outPairs <- p
+		}
+	}
+
+	close(outPairs)
+}
+func merge(inPair []chan Pair) map[string]int {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	counter := make(map[string]int)
+
+	wg.Add(len(inPair))
+
+	for _, ch := range inPair {
+		go func(ch chan Pair) {
+			defer wg.Done()
+			for pair := range ch {
+				mu.Lock()
+				counter[pair.word] += pair.count
+				mu.Unlock()
+			}
+		}(ch)
+	}
+
+	wg.Wait()
+
+	return counter
+}
+
+func write(counter map[string]int) {
+	var total int
+
+	for word, count := range counter {
+		total += count
 		fmt.Printf("%s: %d\n", word, count)
 	}
 
-	fmt.Printf("всего: %d", counter.total)
+	fmt.Printf("всего: %d", total)
 }
